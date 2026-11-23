@@ -1,4 +1,5 @@
 local tween = require "tween"
+local dandelion = require "dandelion"
 local gameW = usagi.GAME_W
 local gameH = usagi.GAME_H
 print("GAME_W: " .. gameW)
@@ -62,6 +63,7 @@ function Rain(dt)
       -- run the tween update here, when 'true' flag for removal
       local splash = drop.tween:update(dt)
       gfx.circ(drop.xE, drop.yE, drop.currRad, gfx.COLOR_TRUE_WHITE, drop.alpha)
+      dandelion.Spawn("new_splash", drop.xE, drop.yE)
       if splash == true then
         drop.remove = true
       end
@@ -175,6 +177,7 @@ end
 function _draw(dt)
   gfx.clear(gfx.COLOR_BLACK)
   gfx.text("Hello, Usagi!", 10, 10, gfx.COLOR_WHITE)
+  dandelion.DrawExcept()
   if State.raining then
     dropsTween:update(dt)
     drops.currDrops = math.floor(drops.currDrops)
