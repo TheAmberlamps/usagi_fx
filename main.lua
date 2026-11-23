@@ -15,6 +15,7 @@ function _init()
   -- survives reloads; F5 calls _init again to reset.
   State = {
     raindrops = {},
+    droplets = {},
     snowflakes = {},
     flakeNum = {currFlakes = 1, maxFlakes = 75},
     flakesTween = nil,
@@ -51,6 +52,18 @@ function Rain(dt)
     raindrop.vel = getVec
     table.insert(State.raindrops, raindrop)
   end
+  function Splash(x, y, num)
+    for i=1, num do
+      local droplet = {
+        x = x,
+        y = y,
+        xVel = math.random(-1, 1),
+        yVel = -math.random(3, 5),
+        grav = 0.1
+      }
+      table.insert(State.droplets, droplet)
+    end
+  end
   for i=1, #State.raindrops do
     local drop = State.raindrops[i]
     if drop.yE <= drop.splashPoint then
@@ -63,18 +76,27 @@ function Rain(dt)
       -- run the tween update here, when 'true' flag for removal
       local splash = drop.tween:update(dt)
       gfx.circ(drop.xE, drop.yE, drop.currRad, gfx.COLOR_TRUE_WHITE, drop.alpha)
-      dandelion.Spawn("new_splash", drop.xE, drop.yE)
+      --dandelion.Spawn("new_splash", drop.xE, drop.yE)
       if splash == true then
         drop.remove = true
       end
     else
       gfx.circ(drop.xE, drop.yE, drop.rad, gfx.COLOR_TRUE_WHITE)
+      Splash(drop.xE, drop.yE, 5)
       drop.splashing = true
       drop.currRad = 1
       drop.alpha = 1
       drop.tween = tween.new(0.5, drop, {currRad = drop.rad, alpha = 0}, 'linear')
       -- insert an easing function into the raindrop here to handle splash animation
     end
+  end
+  print(#State.droplets)
+  for i=1, #State.droplets do
+    local drop = State.droplets[i]
+    drop.x += drop.xVel
+    drop.y += drop.yVel
+    drop.yVel += drop.grav
+    gfx.px(drop.x, drop.y, gfx.COLOR_TRUE_WHITE, 1)
   end
   for i=#State.raindrops, 1, -1 do
     -- ok, working like a charm; once the splashing tween is implemented, change this to check for the removal flag
