@@ -14,18 +14,22 @@ function _init()
   -- Stash mutable game state in a capitalized global like `State` so it
   -- survives reloads; F5 calls _init again to reset.
   State = {
+    time = 0,
     raindrops = {},
     droplets = {},
     snowflakes = {},
     flakeNum = {currFlakes = 1, maxFlakes = 75},
     flakesTween = nil,
     raining = true,
-    snowing = false
+    snowing = false,
+    agua = {}
   }
   State.flakesTween = tween.new(10, State.flakeNum, {currFlakes = State.flakeNum.maxFlakes}, 'inCubic')
+  WaterBGInit()
 end
 
 function Rain(dt)
+
   -- use an easing function to go from a handful of drops to proper rainfall
   while #State.raindrops < drops.currDrops do
     -- 95 is an offset to make sure the rain spawns in from offscreen properly
@@ -52,18 +56,23 @@ function Rain(dt)
     raindrop.vel = getVec
     table.insert(State.raindrops, raindrop)
   end
+
   function Splash(x, y, num)
     for i=1, num do
       local droplet = {
         x = x,
         y = y,
-        xVel = math.random(-1, 1),
-        yVel = -math.random(3, 5),
-        grav = 0.1
+        xVel = math.random(-1, 1) / 2,
+        yVel = -math.random(1, 2) / 1.25,
+        grav = 0.1,
+        alpha = 1,
+        tween = nil
       }
+      droplet.tween = tween.new(0.4, droplet, {alpha = 0}, 'linear')
       table.insert(State.droplets, droplet)
     end
   end
+
   for i=1, #State.raindrops do
     local drop = State.raindrops[i]
     if drop.yE <= drop.splashPoint then
@@ -87,22 +96,94 @@ function Rain(dt)
       drop.currRad = 1
       drop.alpha = 1
       drop.tween = tween.new(0.5, drop, {currRad = drop.rad, alpha = 0}, 'linear')
-      -- insert an easing function into the raindrop here to handle splash animation
     end
   end
-  print(#State.droplets)
   for i=1, #State.droplets do
     local drop = State.droplets[i]
+    local check = drop.tween:update(dt)
+    if check == true then
+      drop.remove = true
+    end
     drop.x += drop.xVel
     drop.y += drop.yVel
     drop.yVel += drop.grav
-    gfx.px(drop.x, drop.y, gfx.COLOR_TRUE_WHITE, 1)
+    gfx.px(drop.x, drop.y, gfx.COLOR_TRUE_WHITE, drop.alpha)
   end
+  -- cleanup
   for i=#State.raindrops, 1, -1 do
     -- ok, working like a charm; once the splashing tween is implemented, change this to check for the removal flag
     if State.raindrops[i].remove == true then
       table.remove(State.raindrops, i)
     end
+  end
+  for i=#State.droplets, 1, -1 do
+    if State.droplets[i].remove then
+      table.remove(State.droplets, i)
+    end
+  end
+end
+
+function WaterBGInit()
+  local gridX = gameW / 16 + 3
+  print("gridX: " .. gridX)
+  local gridY = gameH / 16 + 3
+  local outerIterator = nil
+  local innerIterator = nil
+  if gridX > gridY then
+    outerIterator = gridX
+    innerIterator = gridY
+  else
+    outerIterator = gridY
+    innerIterator = gridX
+  end
+  for i=1, outerIterator do
+    for j=1, innerIterator do
+      local waterTile = {
+        x = (i - 2) * 16,
+        y = (j - 2) * 16,
+        xOffset = 0,
+        yOffset = 0,
+        spr = 1,
+        t = State.time
+      }
+      print("waterTile.x: " .. waterTile.x)
+      print("waterTile.y: " .. waterTile.y)
+      table.insert(State.agua, waterTile)
+    end
+  end
+end
+
+function WaterDraw(dt)
+  -- some weird visual bug keeps messing with me here... very odd
+  for i=1, #State.agua do
+    if input.held(input.LEFT) then
+      State.agua[i].xOffset -= dt * 30
+    end
+    if input.held(input.RIGHT) then
+      State.agua[i].xOffset += dt * 30
+    end
+    if input.held(input.UP) then
+      State.agua[i].yOffset -= dt * 30
+    end
+    if input.held(input.DOWN) then
+      State.agua[i].yOffset += dt * 30
+    end
+    if State.time > State.agua[i].t + 0.2 then
+      State.agua[i].t = State.time
+      State.agua[i].spr += 1
+      if State.agua[i].spr > 5 then
+        State.agua[i].spr = 1
+      end
+    end
+    if State.agua[i].xOffset > 16 or State.agua[i].xOffset < -16 then
+      State.agua[i].xOffset = 0
+    end
+    if State.agua[i].yOffset > 16 or State.agua[i].yOffset < -16 then
+      State.agua[i].yOffset = 0
+    end
+    local newX = State.agua[i].x + State.agua[i].xOffset
+    local newY = State.agua[i].y + State.agua[i].yOffset
+    gfx.spr(State.agua[i].spr, newX, newY)
   end
 end
 
@@ -185,21 +266,18 @@ function BarsTransition(dt)
 end
 
 function _update(dt)
+  State.time += dt
   if input.pressed(input.BTN1) then
-    if State.snowing then
-      State.snowing = false
-      State.flakesTween = tween.new(10, State.flakeNum, {currFlakes = 0}, 'outCubic')
-    else
-      State.snowing = true
-      State.flakesTween = tween.new(10, State.flakeNum, {currFlakes = State.flakeNum.maxFlakes}, 'inCubic')
+    if State.raining then
+      dropsTween = tween.new(10, drops, {currDrops = 0}, 'outCubic')
     end
   end
 end
 
 function _draw(dt)
   gfx.clear(gfx.COLOR_BLACK)
-  gfx.text("Hello, Usagi!", 10, 10, gfx.COLOR_WHITE)
   dandelion.DrawExcept()
+  WaterDraw(dt)
   if State.raining then
     dropsTween:update(dt)
     drops.currDrops = math.floor(drops.currDrops)
