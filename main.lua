@@ -1,7 +1,9 @@
 local tween = require "tween"
 local dandelion = require "dandelion"
 local gameW = usagi.GAME_W
+local gridW = gameW / 16
 local gameH = usagi.GAME_H
+local gridH = gameH / 16
 print("GAME_W: " .. gameW)
 print("GAME_H: " .. gameH)
 local drops = {currDrops = 1 , maxDrops = 50}
@@ -185,6 +187,56 @@ function WaterDraw(dt)
   end
 end
 
+local dXY = {x = 16 * 18, y = 16}
+
+function Compass(dest)
+  local compassDisplay = gfx.sspr(0, 32, 96, 32, 7 * 16, 0)
+  -- establish radius of compass
+  local radius = 7
+  -- define center of compass as a vector
+  local compCent = {x = (7 * 16) + (3 * 16), y = 16}
+  -- define the x/y vector compass should point to
+  local destX, destY = input.mouse()
+  -- get angle from vectors
+  local getAng = math.atan(compCent.y - destY, compCent.x - destX)
+  -- get new vector from angle
+  local getVec = util.vec_from_angle(getAng, radius)
+  -- draw needle at compass center, subtracted by the new vector and the offset to center it, rotated by the angle
+  local needle = gfx.spr_ex(66, compCent.x - getVec.x - 8, compCent.y - getVec.y - 8, false, false, getAng, gfx.COLOR_TRUE_WHITE, 1)
+end
+
+local displayNum = 0
+
+function DrawGrid()
+  if input.pressed(input.BTN3) then
+    displayNum += 1
+    if displayNum > 2 then
+      displayNum = 0
+    end
+  end
+  for i=1, gridW do
+    gfx.line(16 * i, 0, 16 * i, usagi.GAME_H, gfx.COLOR_RED)
+    -- commented-out not because it doesn't work, but because grids are too small for the text
+    -- well this might work instead
+    for j=1, gridH do
+      gfx.line(0, 16 * j, usagi.GAME_W, 16 * j, gfx.COLOR_RED)
+      local textW = tostring(i - 1)
+      local textH = tostring(j - 1)
+      local textChoice = ''
+      if displayNum > 0 then
+        if displayNum < 2 then
+          textChoice = textW
+        else
+          textChoice = textH
+        end
+      end
+      local wi, hi = usagi.measure_text(textW)
+      local wj, hj = usagi.measure_text(textH)
+      gfx.text_ex(textChoice, (16 * (i - 1)), (16 * (j - 1)), 1, 0, gfx.COLOR_WHITE, 1, 0)
+    end
+  end
+end
+
 function Snow(dir, dur, dt)
   local dir = dir
   local dur = dur
@@ -270,23 +322,13 @@ function _update(dt)
       dropsTween = tween.new(10, drops, {currDrops = 0}, 'outCubic')
     end
   end
-  if input.pressed(input.BTN3) then
-    print("yes")
-    print("aguaVals.x: " .. State.aguaVals.x)
-    print("aguaVals.y: " .. State.aguaVals.y)
-    for i=1, #State.agua do
-      if State.agua[i].x % 16 ~= 0 then
-        print("i.x: " .. State.agua[i].x)
-        print(State.agua[i].x)
-      end
-    end
-  end
 end
 
 function _draw(dt)
   gfx.clear(gfx.COLOR_BLACK)
   dandelion.DrawExcept()
   WaterDraw(dt)
+  Compass(dXY)
   if State.raining then
     dropsTween:update(dt)
     drops.currDrops = math.floor(drops.currDrops)
@@ -312,4 +354,5 @@ function _draw(dt)
       barsTween = tween.new(2, barsOffset, {x = 0}, 'linear')
     end
   end
+  --DrawGrid()
 end
