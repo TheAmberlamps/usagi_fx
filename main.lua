@@ -20,9 +20,10 @@ function _init()
     snowflakes = {},
     flakeNum = {currFlakes = 1, maxFlakes = 75},
     flakesTween = nil,
-    raining = true,
+    raining = false,
     snowing = false,
-    agua = {}
+    agua = {},
+    aguaVals = {x = 0, y = 0, t = 0, spr = 1}
   }
   State.flakesTween = tween.new(10, State.flakeNum, {currFlakes = State.flakeNum.maxFlakes}, 'inCubic')
   WaterBGInit()
@@ -124,7 +125,7 @@ function Rain(dt)
 end
 
 function WaterBGInit()
-  local gridX = gameW / 16 + 3
+  local gridX = gameW / 16 + 2
   print("gridX: " .. gridX)
   local gridY = gameH / 16 + 3
   local outerIterator = nil
@@ -141,13 +142,9 @@ function WaterBGInit()
       local waterTile = {
         x = (i - 2) * 16,
         y = (j - 2) * 16,
-        xOffset = 0,
-        yOffset = 0,
-        spr = 1,
-        t = State.time
       }
-      print("waterTile.x: " .. waterTile.x)
-      print("waterTile.y: " .. waterTile.y)
+      --print("waterTile.x: " .. waterTile.x)
+      --print("waterTile.y: " .. waterTile.y)
       table.insert(State.agua, waterTile)
     end
   end
@@ -155,35 +152,36 @@ end
 
 function WaterDraw(dt)
   -- some weird visual bug keeps messing with me here... very odd
+  -- I wasn't rounding-off the results, of course...
+  if input.held(input.LEFT) then
+    State.aguaVals.x -= dt * 30
+  end
+  if input.held(input.RIGHT) then
+    State.aguaVals.x += dt * 30
+  end
+  if input.held(input.UP) then
+    State.aguaVals.y -= dt * 30
+  end
+  if input.held(input.DOWN) then
+    State.aguaVals.y += dt * 30
+  end
+  if State.aguaVals.x > 15 or State.aguaVals.x < -15 then
+    State.aguaVals.x = 0
+  end
+  if State.aguaVals.y > 15 or State.aguaVals.y < -15 then
+    State.aguaVals.y = 0
+  end
+  if State.time > State.aguaVals.t + 0.2 then
+    State.aguaVals.t = State.time
+    State.aguaVals.spr += 1
+    if State.aguaVals.spr > 5 then
+      State.aguaVals.spr = 1
+    end
+  end
   for i=1, #State.agua do
-    if input.held(input.LEFT) then
-      State.agua[i].xOffset -= dt * 30
-    end
-    if input.held(input.RIGHT) then
-      State.agua[i].xOffset += dt * 30
-    end
-    if input.held(input.UP) then
-      State.agua[i].yOffset -= dt * 30
-    end
-    if input.held(input.DOWN) then
-      State.agua[i].yOffset += dt * 30
-    end
-    if State.time > State.agua[i].t + 0.2 then
-      State.agua[i].t = State.time
-      State.agua[i].spr += 1
-      if State.agua[i].spr > 5 then
-        State.agua[i].spr = 1
-      end
-    end
-    if State.agua[i].xOffset > 16 or State.agua[i].xOffset < -16 then
-      State.agua[i].xOffset = 0
-    end
-    if State.agua[i].yOffset > 16 or State.agua[i].yOffset < -16 then
-      State.agua[i].yOffset = 0
-    end
-    local newX = State.agua[i].x + State.agua[i].xOffset
-    local newY = State.agua[i].y + State.agua[i].yOffset
-    gfx.spr(State.agua[i].spr, newX, newY)
+    local newX = math.floor(State.agua[i].x + State.aguaVals.x)
+    local newY = math.floor(State.agua[i].y + State.aguaVals.y)
+    gfx.spr(State.aguaVals.spr, newX, newY)
   end
 end
 
@@ -270,6 +268,17 @@ function _update(dt)
   if input.pressed(input.BTN1) then
     if State.raining then
       dropsTween = tween.new(10, drops, {currDrops = 0}, 'outCubic')
+    end
+  end
+  if input.pressed(input.BTN3) then
+    print("yes")
+    print("aguaVals.x: " .. State.aguaVals.x)
+    print("aguaVals.y: " .. State.aguaVals.y)
+    for i=1, #State.agua do
+      if State.agua[i].x % 16 ~= 0 then
+        print("i.x: " .. State.agua[i].x)
+        print(State.agua[i].x)
+      end
     end
   end
 end
