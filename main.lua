@@ -24,11 +24,21 @@ function _init()
     flakesTween = nil,
     raining = false,
     snowing = false,
+    scrolling = true,
     agua = {},
-    aguaVals = {x = 0, y = 0, t = 0, spr = 1}
+    aguaVals = {x = 0, y = 0, t = 0, spr = 1},
+    worldPos = {x = 0, y = 0},
+    map = {},
+    compDest = {
+      x = 0,
+      y = 0
+    }
   }
   State.flakesTween = tween.new(10, State.flakeNum, {currFlakes = State.flakeNum.maxFlakes}, 'inCubic')
   WaterBGInit()
+  IslandMaker(200, 200, 4, 2)
+  State.compDest.x = 200 + 4 / 2 * 16 + 16
+  State.compDest.y = 200 + 2 / 2 * 16 + 16
 end
 
 function Rain(dt)
@@ -155,18 +165,6 @@ end
 function WaterDraw(dt)
   -- some weird visual bug keeps messing with me here... very odd
   -- I wasn't rounding-off the results, of course...
-  if input.held(input.LEFT) then
-    State.aguaVals.x -= dt * 30
-  end
-  if input.held(input.RIGHT) then
-    State.aguaVals.x += dt * 30
-  end
-  if input.held(input.UP) then
-    State.aguaVals.y -= dt * 30
-  end
-  if input.held(input.DOWN) then
-    State.aguaVals.y += dt * 30
-  end
   if State.aguaVals.x > 15 or State.aguaVals.x < -15 then
     State.aguaVals.x = 0
   end
@@ -187,6 +185,115 @@ function WaterDraw(dt)
   end
 end
 
+function IslandMaker(x, y, w, h)
+  local x = x
+  local y = y
+  local w = w
+  local h = h
+  --local tl = gfx.spr(9, x, y)
+  local tl = {
+    spr = 9,
+    x = x,
+    y = y 
+  }
+  table.insert(State.map, tl)
+  for i=1, w do
+    for j=1, h do
+      local center = {
+        spr = 26,
+        x = x + 16 * i,
+        y = y + 16 * j
+      }
+      table.insert(State.map, center)
+    end
+    local top = {
+      spr = 10,
+      x = x + 16 * i,
+      y = y
+    }
+    table.insert(State.map, top)
+    --local top = gfx.spr(10, x + 16 * i, y)
+    local bot = {
+      spr = 42,
+      x = x + 16 * i,
+      y = y + 16 + 16 * h
+    }
+    table.insert(State.map, bot)
+    --local bot = gfx.spr(42, x + 16 * i, y + 16 + 16 * w)
+  end
+  for i=1, h do
+    local left = {
+      spr = 25,
+      x = x,
+      y = y + 16 * i
+    }
+    table.insert(State.map, left)
+    --local left = gfx.spr(25, x, y + 16 * i)
+    local right = {
+      spr = 27,
+      x = x + 16 + 16 * w,
+      y = y + 16 * i
+    }
+    table.insert(State.map, right)
+    --local right = gfx.spr(27, x + 16 + 16 * w, y + 16 * i)
+  end
+  local tr = {
+    spr = 11,
+    x = x + 16 + 16 * w,
+    y = y
+  }
+  table.insert(State.map, tr)
+  --local tr = gfx.spr(11, x + 16 + 16 * w, y)
+  local bl = {
+    spr = 41,
+    x = x,
+    y = y + 16 + 16 * h
+  }
+  table.insert(State.map, bl)
+  --local bl = gfx.spr(41, x, y + 16 + 16 * h)
+  local br = {
+    spr = 43,
+    x = x + 16 + 16 * w,
+    y = y + 16 + 16 * h
+  }
+  table.insert(State.map, br)
+  --local br = gfx.spr(43, x + 16 + 16 * w, y + 16 + 16 * h)
+end
+
+--IslandMaker(State.worldPos.x, State.worldPos.y)
+
+function MapDraw(map)
+  local map = map
+  for i=1, #map do
+    gfx.spr(map[i].spr, map[i].x + State.worldPos.x, map[i].y + State.worldPos.y)
+  end
+end
+
+function InputHandler(dt)
+  if State.scrolling then
+    if input.held(input.LEFT) then
+      State.aguaVals.x += dt * 30
+      State.worldPos.x += dt * 30
+    end
+    if input.held(input.RIGHT) then
+      State.aguaVals.x -= dt * 30
+      State.worldPos.x -= dt * 30
+    end
+    if input.held(input.UP) then
+      State.aguaVals.y += dt * 30
+      State.worldPos.y += dt * 30
+    end
+    if input.held(input.DOWN) then
+      State.aguaVals.y -= dt * 30
+      State.worldPos.y -= dt * 30
+    end
+    if input.pressed(input.BTN1) then
+      print("worldPos.x: " .. State.worldPos.x)
+      print("worldPos.y: " .. State.worldPos.y)
+    end
+  end
+end
+
 local dXY = {x = 16 * 18, y = 16}
 
 function Compass(dest)
@@ -196,13 +303,14 @@ function Compass(dest)
   -- define center of compass as a vector
   local compCent = {x = (7 * 16) + (3 * 16), y = 16}
   -- define the x/y vector compass should point to
-  local destX, destY = input.mouse()
+  --local destX, destY = input.mouse()
+  local dest = dest
   -- get angle from vectors
-  local getAng = math.atan(compCent.y - destY, compCent.x - destX)
+  local getAng = math.atan(compCent.y - dest.y - State.worldPos.y, compCent.x - dest.x - State.worldPos.x)
   -- get new vector from angle
   local getVec = util.vec_from_angle(getAng, radius)
   -- draw needle at compass center, subtracted by the new vector and the offset to center it, rotated by the angle
-  local needle = gfx.spr_ex(66, compCent.x - getVec.x - 8, compCent.y - getVec.y - 8, false, false, getAng, gfx.COLOR_TRUE_WHITE, 1)
+  local needle = gfx.spr_ex(40, compCent.x - getVec.x - 8, compCent.y - getVec.y - 8, false, false, getAng, gfx.COLOR_TRUE_WHITE, 1)
 end
 
 local displayNum = 0
@@ -317,6 +425,7 @@ end
 
 function _update(dt)
   State.time += dt
+  InputHandler(dt)
   if input.pressed(input.BTN1) then
     if State.raining then
       dropsTween = tween.new(10, drops, {currDrops = 0}, 'outCubic')
@@ -328,7 +437,8 @@ function _draw(dt)
   gfx.clear(gfx.COLOR_BLACK)
   dandelion.DrawExcept()
   WaterDraw(dt)
-  Compass(dXY)
+  MapDraw(State.map)
+  Compass(State.compDest)
   if State.raining then
     dropsTween:update(dt)
     drops.currDrops = math.floor(drops.currDrops)
